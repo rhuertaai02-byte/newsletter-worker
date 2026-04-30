@@ -16,6 +16,7 @@ from notion_reader import (
     extract_image_prompt,
     extract_image_settings,
     extract_main_content,
+    find_root_page,
     get_issue_blocks,
     get_new_issues,
     mark_issue_processed,
@@ -118,7 +119,8 @@ async def process_issue(issue: dict):
 async def poll_notion():
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Polling Notion...")
     try:
-        new_issues = get_new_issues(processed_issues)
+        root_id = find_root_page(os.environ.get("NOTION_ROOT_PAGE", "Newsletter"))
+        new_issues = get_new_issues(root_id, processed_issues)
         print(f"  Found {len(new_issues)} issue(s) to process.")
         for issue in new_issues:
             await process_issue(issue)
