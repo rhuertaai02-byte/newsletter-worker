@@ -32,19 +32,16 @@ def is_issue_processed_in_notion(issue_page_id: str) -> bool:
     return False
 
 
-def get_new_issues(already_processed: set) -> list[dict]:
-    """Search Notion directly for newsletter issue pages, regardless of where they live."""
-    results = notion.search(
-        query="Newsletter —",
-        filter={"property": "object", "value": "page"},
-    ).get("results", [])
+def get_new_issues(root_page_id: str, already_processed: set) -> list[dict]:
+    children = notion.blocks.children.list(block_id=root_page_id).get("results", [])
     issues = []
-    for page in results:
-        page_id = page["id"]
+    for block in children:
+        if block["type"] != "child_page":
+            continue
+        page_id = block["id"]
         if page_id in already_processed:
             continue
-        title_parts = page.get("properties", {}).get("title", {}).get("title", [])
-        title = "".join(t["plain_text"] for t in title_parts)
+        title = block["child_page"]["title"]
         if not title.startswith("Newsletter —"):
             continue
         if is_issue_processed_in_notion(page_id):
@@ -56,6 +53,9 @@ def get_new_issues(already_processed: set) -> list[dict]:
 
 def get_issue_blocks(issue_page_id: str) -> dict:
     children = notion.blocks.children.list(block_id=issue_page_id).get("results", [])
+    print(f"  get_issue_blocks: {len(children)} blocks in issue page")
+    for block in children:
+        print(f"    type={block['type']} title={repr(block.get('child_page', {}).get('title', ''))}")
     blocks = {}
     for block in children:
         if block["type"] != "child_page":
