@@ -15,8 +15,24 @@ def find_root_page(name: str) -> str:
     raise ValueError(f"Notion page '{name}' not found. Make sure the newsletter-worker integration has access to it.")
 
 
+def is_issue_processed_in_notion(issue_page_id: str) -> bool:
+    children = notion.blocks.children.list(block_id=issue_page_id).get("results", [])
+    for block in children:
+        if block["type"] != "child_page":
+            continue
+        if "Summary" not in block["child_page"]["title"]:
+            continue
+        summary_blocks = notion.blocks.children.list(block_id=block["id"]).get("results", [])
+        for sb in summary_blocks:
+            btype = sb["type"]
+            rich = sb.get(btype, {}).get("rich_text", [])
+            text = "".join(r["plain_text"] for r in rich)
+            if "IMAGES GENERATED" in text or "PENDING APPROVAL" in text:
+                return True
+    return False
+
+
 def get_new_issues(root_page_id: str, already_processed: set) -> list[dict]:
-    """Return child pages of root that haven't been processed yet."""
     children = notion.blocks.children.list(block_id=root_page_id).get("results", [])
     issues = []
     for block in children:
@@ -26,13 +42,16 @@ def get_new_issues(root_page_id: str, already_processed: set) -> list[dict]:
         if page_id in already_processed:
             continue
         title = block["child_page"]["title"]
-        if title.startswith("Newsletter —"):
-            issues.append({"id": page_id, "title": title})
+        if not title.startswith("Newsletter —"):
+            continue
+        if is_issue_processed_in_notion(page_id):
+            already_processed.add(page_id)
+            continue
+        issues.append({"id": page_id, "title": title})
     return issues
 
 
 def get_issue_blocks(issue_page_id: str) -> dict:
-    """Read all sub-pages of an issue and return their content."""
     children = notion.blocks.children.list(block_id=issue_page_id).get("results", [])
     blocks = {}
     for block in children:
@@ -46,7 +65,6 @@ def get_issue_blocks(issue_page_id: str) -> dict:
 
 
 def extract_page_text(page_id: str) -> str:
-    """Extract all text content from a Notion page."""
     all_blocks = notion.blocks.children.list(block_id=page_id).get("results", [])
     lines = []
     for block in all_blocks:
@@ -59,7 +77,6 @@ def extract_page_text(page_id: str) -> str:
 
 
 def extract_image_prompt(content: str) -> str | None:
-    """Pull the image prompt from a block's content text."""
     lines = content.split("\n")
     in_prompt = False
     prompt_lines = []
@@ -76,7 +93,6 @@ def extract_image_prompt(content: str) -> str | None:
 
 
 def extract_image_settings(content: str) -> dict:
-    """Pull size and quality settings from block content."""
     settings = {"size": "1024x1024", "quality": "medium", "style": "natural"}
     for line in content.split("\n"):
         if "Size:" in line:
@@ -92,7 +108,6 @@ def extract_image_settings(content: str) -> dict:
 
 
 def extract_main_content(content: str) -> str:
-    """Extract just the Content section from a block page."""
     lines = content.split("\n")
     in_content = False
     result = []
@@ -108,7 +123,6 @@ def extract_main_content(content: str) -> str:
 
 
 def mark_issue_processed(issue_page_id: str):
-    """Update the Summary page status to IMAGES ADDED."""
     children = notion.blocks.children.list(block_id=issue_page_id).get("results", [])
     for block in children:
         if block["type"] == "child_page" and "Summary" in block["child_page"]["title"]:
