@@ -32,16 +32,19 @@ def is_issue_processed_in_notion(issue_page_id: str) -> bool:
     return False
 
 
-def get_new_issues(root_page_id: str, already_processed: set) -> list[dict]:
-    children = notion.blocks.children.list(block_id=root_page_id).get("results", [])
+def get_new_issues(already_processed: set) -> list[dict]:
+    """Search Notion directly for newsletter issue pages, regardless of where they live."""
+    results = notion.search(
+        query="Newsletter —",
+        filter={"property": "object", "value": "page"},
+    ).get("results", [])
     issues = []
-    for block in children:
-        if block["type"] != "child_page":
-            continue
-        page_id = block["id"]
+    for page in results:
+        page_id = page["id"]
         if page_id in already_processed:
             continue
-        title = block["child_page"]["title"]
+        title_parts = page.get("properties", {}).get("title", {}).get("title", [])
+        title = "".join(t["plain_text"] for t in title_parts)
         if not title.startswith("Newsletter —"):
             continue
         if is_issue_processed_in_notion(page_id):
