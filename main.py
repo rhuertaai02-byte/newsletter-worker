@@ -24,11 +24,8 @@ from notion_reader import (
 from image_generator import generate_image, base64_to_data_url
 from email_sender import send_preview_email, send_newsletter
 
-# ---------------------------------------------------------------------------
-# In-memory state (fine for single-instance Railway deployment)
-# ---------------------------------------------------------------------------
 processed_issues: set[str] = set()
-pending_approvals: dict[str, dict] = {}  # token -> issue data ready to send
+pending_approvals: dict[str, dict] = {}
 
 BLOCK_ORDER = [
     "01 — AI News Roundup",
@@ -49,19 +46,14 @@ BLOCK_LABELS = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Core pipeline
-# ---------------------------------------------------------------------------
-
 async def process_issue(issue: dict):
-    """Read one Notion issue, generate images, send preview email."""
     issue_id = issue["id"]
     issue_title = issue["title"]
     print(f"\nProcessing: {issue_title}")
 
     raw_blocks = get_issue_blocks(issue_id)
-    prepared_blocks = []       # for preview email summary
-    sendable_blocks = []       # full data for newsletter
+    prepared_blocks = []
+    sendable_blocks = []
 
     for block_key in BLOCK_ORDER:
         if block_key not in raw_blocks:
@@ -73,10 +65,8 @@ async def process_issue(issue: dict):
         prompt = extract_image_prompt(content)
         settings = extract_image_settings(content)
 
-        # Detect quality flag
         flag = "WEAK" if "WEAK" in content.upper() else "GOOD"
 
-        # Generate image
         image_b64 = None
         if prompt:
             print(f"  Generating image for {block_key}...")
@@ -87,7 +77,6 @@ async def process_issue(issue: dict):
                 style=settings["style"],
             )
 
-        # One-line summary (first non-empty line of main content)
         summary = next((l.strip() for l in main_content.split("\n") if l.strip()), "—")
         summary = textwrap.shorten(summary, width=100, placeholder="...")
 
@@ -105,7 +94,10 @@ async def process_issue(issue: dict):
             "flag": flag,
         })
 
-    # Generate approval token and store issue data
+    if not sendable_blocks:
+        print(f"  No content blocks found for '{issue_title}' — will retry next poll.")
+        return
+
     token = secrets.token_urlsafe(32)
     pending_approvals[token] = {
         "title": issue_title,
@@ -113,7 +105,6 @@ async def process_issue(issue: dict):
         "date": datetime.now().strftime("%B %d, %Y"),
     }
 
-    # Send preview email to Rodrigo
     send_preview_email(
         issue_title=issue_title,
         blocks=prepared_blocks,
@@ -126,30 +117,25 @@ async def process_issue(issue: dict):
 
 
 async def poll_notion():
-    """Check Notion for new newsletter issues."""
     print(f"[{datetime.now().strftime('%H:%M:%S')}] Polling Notion...")
     try:
         root_id = find_root_page(os.environ.get("NOTION_ROOT_PAGE", "Newsletter"))
         new_issues = get_new_issues(root_id, processed_issues)
+        print(f"  Found {len(new_issues)} issue(s) to process.")
         for issue in new_issues:
             await process_issue(issue)
     except Exception as e:
-        print(f"Poll error: {e}")
+        import traceback
+        print(f"Poll error: {e}\n{traceback.format_exc()}")
 
-
-# ---------------------------------------------------------------------------
-# Scheduler
-# ---------------------------------------------------------------------------
 
 scheduler = AsyncIOScheduler()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Poll every 10 minutes
     scheduler.add_job(poll_notion, "interval", minutes=10, id="notion_poll")
     scheduler.start()
-    # Run once immediately on startup
     asyncio.create_task(poll_notion())
     yield
     scheduler.shutdown()
@@ -157,10 +143,6 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
-
-# ---------------------------------------------------------------------------
-# Approval page
-# ---------------------------------------------------------------------------
 
 APPROVAL_PAGE = """
 <!DOCTYPE html>
@@ -245,7 +227,6 @@ async def approval_page(token: str):
     data = pending_approvals[token]
     from jinja2 import Template
 
-    # Add summary line to each block for the approval page
     blocks_with_summary = []
     for b in data["blocks"]:
         summary = b["content_html"].replace("<br>", " ")[:120].strip() + "..."
