@@ -5,14 +5,13 @@ notion = Client(auth=os.environ["NOTION_TOKEN"])
 
 
 def find_root_page(name: str) -> str:
-    """Find the root Newsletter page by name."""
     results = notion.search(query=name, filter={"property": "object", "value": "page"}).get("results", [])
     for page in results:
         title_parts = page.get("properties", {}).get("title", {}).get("title", [])
         title = "".join(t["plain_text"] for t in title_parts)
         if title.strip() == name:
             return page["id"]
-    raise ValueError(f"Notion page '{name}' not found. Make sure the newsletter-worker integration has access to it.")
+    raise ValueError(f"Notion page '{name}' not found.")
 
 
 def is_issue_processed_in_notion(issue_page_id: str) -> bool:
@@ -34,28 +33,34 @@ def is_issue_processed_in_notion(issue_page_id: str) -> bool:
 
 def get_new_issues(root_page_id: str, already_processed: set) -> list[dict]:
     children = notion.blocks.children.list(block_id=root_page_id).get("results", [])
+    print(f"  Root page has {len(children)} total blocks")
     issues = []
     for block in children:
         if block["type"] != "child_page":
             continue
         page_id = block["id"]
-        if page_id in already_processed:
-            continue
         title = block["child_page"]["title"]
+        print(f"  Found child_page: {repr(title)} id={page_id}")
+        if page_id in already_processed:
+            print(f"    -> skipping (already processed)")
+            continue
         if not title.startswith("Newsletter —"):
+            print(f"    -> skipping (title doesn't match)")
             continue
         if is_issue_processed_in_notion(page_id):
+            print(f"    -> skipping (marked done in Notion)")
             already_processed.add(page_id)
             continue
+        print(f"    -> QUEUING for processing")
         issues.append({"id": page_id, "title": title})
     return issues
 
 
 def get_issue_blocks(issue_page_id: str) -> dict:
     children = notion.blocks.children.list(block_id=issue_page_id).get("results", [])
-    print(f"  get_issue_blocks: {len(children)} blocks in issue page")
+    print(f"  get_issue_blocks: {len(children)} blocks inside issue {issue_page_id}")
     for block in children:
-        print(f"    type={block['type']} title={repr(block.get('child_page', {}).get('title', ''))}")
+        print(f"    type={block['type']} | title={repr(block.get('child_page', {}).get('title', 'N/A'))}")
     blocks = {}
     for block in children:
         if block["type"] != "child_page":
@@ -126,18 +131,4 @@ def extract_main_content(content: str) -> str:
 
 
 def mark_issue_processed(issue_page_id: str):
-    children = notion.blocks.children.list(block_id=issue_page_id).get("results", [])
-    for block in children:
-        if block["type"] == "child_page" and "Summary" in block["child_page"]["title"]:
-            summary_id = block["id"]
-            notion.blocks.children.append(
-                block_id=summary_id,
-                children=[{
-                    "object": "block",
-                    "type": "paragraph",
-                    "paragraph": {
-                        "rich_text": [{"type": "text", "text": {"content": "Status: IMAGES GENERATED — PENDING APPROVAL"}}]
-                    }
-                }]
-            )
-            return
+    children = notio
