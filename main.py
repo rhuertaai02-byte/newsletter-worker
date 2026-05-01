@@ -149,50 +149,61 @@ APPROVAL_PAGE = """
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Review Newsletter — {{ title }}</title>
+  <title>Review — {{ title }}</title>
   <style>
-    * { box-sizing: border-box; }
-    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 24px; }
-    .container { max-width: 680px; margin: 0 auto; background: white;
-                 padding: 40px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,.1); }
-    h1 { font-size: 22px; margin: 0 0 6px; }
-    .subtitle { color: #888; font-size: 14px; margin-bottom: 32px; }
-    .block { display: flex; align-items: flex-start; gap: 14px;
-             padding: 16px 0; border-bottom: 1px solid #eee; }
-    .block:last-of-type { border-bottom: none; }
-    input[type=checkbox] { width: 20px; height: 20px; margin-top: 3px; cursor: pointer; flex-shrink: 0; }
-    .block-info { flex: 1; }
-    .block-name { font-weight: bold; font-size: 15px; }
-    .block-summary { color: #555; font-size: 13px; margin-top: 4px; }
-    .weak { color: #c0392b; font-size: 12px; margin-top: 2px; }
-    .send-btn { display: block; width: 100%; margin-top: 32px; padding: 16px;
-                background: #111; color: white; border: none; border-radius: 4px;
-                font-size: 17px; cursor: pointer; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, serif; background: #f0ede8; min-height: 100vh; padding: 40px 20px; }
+    .header { max-width: 740px; margin: 0 auto 36px; }
+    .label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #999; font-family: Arial, sans-serif; margin-bottom: 10px; }
+    .header h2 { font-size: 28px; font-weight: normal; color: #111; border-bottom: 1px solid #ccc; padding-bottom: 16px; }
+    .card { max-width: 740px; margin: 0 auto 20px; background: white; border-radius: 4px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+    .card-header { display: flex; align-items: center; gap: 16px; padding: 18px 24px; }
+    .card-header input[type=checkbox] { width: 20px; height: 20px; cursor: pointer; accent-color: #111; flex-shrink: 0; }
+    .card-meta { flex: 1; }
+    .card-num { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #bbb; font-family: Arial; }
+    .card-name { font-size: 18px; color: #111; margin-top: 2px; }
+    .weak { background: #fff0f0; color: #c0392b; font-size: 11px; font-family: Arial; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
+    .card-image { width: 100%; max-height: 360px; object-fit: cover; display: block; border-top: 1px solid #f0ede8; }
+    .no-image { padding: 12px 24px 0; font-size: 12px; color: #bbb; font-family: Arial; font-style: italic; }
+    .card-body { padding: 16px 24px 24px; font-size: 14px; line-height: 1.75; color: #444; max-height: 200px; overflow: hidden; position: relative; }
+    .card-body::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(transparent, white); }
+    .footer { max-width: 740px; margin: 32px auto 60px; }
+    .send-btn { display: block; width: 100%; padding: 18px; background: #111; color: white; border: none; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-family: Arial; cursor: pointer; border-radius: 4px; }
     .send-btn:hover { background: #333; }
-    .note { font-size: 12px; color: #aaa; text-align: center; margin-top: 12px; }
+    .note { text-align: center; font-size: 12px; color: #aaa; margin-top: 12px; font-family: Arial; }
   </style>
 </head>
 <body>
-<div class="container">
-  <h1>Review Newsletter</h1>
-  <p class="subtitle">{{ title }} — Select the blocks to include and click Send.</p>
+  <div class="header">
+    <p class="label">DODO Newsletter — Review</p>
+    <h2>{{ title }}</h2>
+  </div>
 
   <form method="POST" action="/send/{{ token }}">
     {% for block in blocks %}
-    <div class="block">
-      <input type="checkbox" name="blocks" value="{{ loop.index0 }}" checked>
-      <div class="block-info">
-        <div class="block-name">{{ block.name }}</div>
-        <div class="block-summary">{{ block.summary }}</div>
-        {% if block.flag == "WEAK" %}<div class="weak">⚠️ Flagged as weak by Claude</div>{% endif %}
+    <div class="card">
+      <div class="card-header">
+        <input type="checkbox" name="blocks" value="{{ loop.index0 }}" checked>
+        <div class="card-meta">
+          <div class="card-num">Block {{ loop.index }}</div>
+          <div class="card-name">{{ block.name }}</div>
+        </div>
+        {% if block.flag == "WEAK" %}<span class="weak">⚠ Flagged weak</span>{% endif %}
       </div>
+      {% if block.image_b64 %}
+        <img class="card-image" src="data:image/png;base64,{{ block.image_b64 }}" alt="{{ block.name }}">
+      {% else %}
+        <p class="no-image">No image generated</p>
+      {% endif %}
+      <div class="card-body">{{ block.content_html | safe }}</div>
     </div>
     {% endfor %}
 
-    <button type="submit" class="send-btn">Send Newsletter to Subscribers</button>
-    <p class="note">This action cannot be undone. Subscribers will receive the selected blocks immediately.</p>
+    <div class="footer">
+      <button type="submit" class="send-btn">Send Newsletter to Subscribers</button>
+      <p class="note">This cannot be undone. Subscribers will receive the selected blocks immediately.</p>
+    </div>
   </form>
-</div>
 </body>
 </html>
 """
@@ -202,16 +213,19 @@ SENT_PAGE = """
 <html>
 <head><meta charset="utf-8"><title>Sent!</title>
 <style>
-  body { font-family: Arial, sans-serif; display: flex; align-items: center;
-         justify-content: center; height: 100vh; background: #f5f5f5; margin: 0; }
-  .box { text-align: center; background: white; padding: 48px; border-radius: 8px; }
-  h1 { font-size: 28px; margin: 0 0 12px; }
-  p { color: #666; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Georgia, serif; display: flex; align-items: center;
+         justify-content: center; height: 100vh; background: #f0ede8; }
+  .box { text-align: center; background: white; padding: 60px 48px; border-radius: 4px; box-shadow: 0 1px 4px rgba(0,0,0,.07); }
+  .label { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #999; font-family: Arial; margin-bottom: 16px; }
+  h1 { font-size: 28px; font-weight: normal; color: #111; margin-bottom: 12px; }
+  p { color: #888; font-family: Arial; font-size: 14px; }
 </style>
 </head>
 <body>
 <div class="box">
-  <h1>✓ Newsletter Sent</h1>
+  <p class="label">DODO Newsletter</p>
+  <h1>Newsletter Sent</h1>
   <p>{{ count }} block(s) delivered to {{ subscribers }} subscriber(s).</p>
 </div>
 </body>
@@ -227,15 +241,10 @@ async def approval_page(token: str):
     data = pending_approvals[token]
     from jinja2 import Template
 
-    blocks_with_summary = []
-    for b in data["blocks"]:
-        summary = b["content_html"].replace("<br>", " ")[:120].strip() + "..."
-        blocks_with_summary.append({**b, "summary": summary})
-
     html = Template(APPROVAL_PAGE).render(
         title=data["title"],
         token=token,
-        blocks=blocks_with_summary,
+        blocks=data["blocks"],
     )
     return HTMLResponse(content=html)
 
