@@ -7,6 +7,8 @@ IMAGE_WORKER_URL = os.environ["IMAGE_WORKER_URL"]
 
 async def generate_image(prompt: str, size: str = "1024x1024", quality: str = "medium", style: str = "natural") -> str | None:
     payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
         "method": "tools/call",
         "params": {
             "name": "generate_image",
