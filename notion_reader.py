@@ -131,4 +131,4 @@ def extract_main_content(content: str) -> str:
 
 
 def mark_issue_processed(issue_page_id: str):
-    children = notio
+    children = notion
