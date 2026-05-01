@@ -6,7 +6,6 @@ IMAGE_WORKER_URL = os.environ["IMAGE_WORKER_URL"]
 
 
 async def generate_image(prompt: str, size: str = "1024x1024", quality: str = "medium", style: str = "natural") -> str | None:
-    """Call the Cloudflare MCP Worker and return base64 image data."""
     payload = {
         "method": "tools/call",
         "params": {
@@ -21,10 +20,16 @@ async def generate_image(prompt: str, size: str = "1024x1024", quality: str = "m
     }
     try:
         async with httpx.AsyncClient(timeout=120) as client:
-            resp = await client.post(f"{IMAGE_WORKER_URL}/mcp", json=payload)
+            resp = await client.post(
+                f"{IMAGE_WORKER_URL}/mcp",
+                json=payload,
+                headers={
+                    "Content-Type": "application/json",
+                    "Accept": "application/json, text/event-stream",
+                }
+            )
             resp.raise_for_status()
             data = resp.json()
-            # Extract base64 from MCP response
             content = data.get("result", {}).get("content", [])
             for item in content:
                 if item.get("type") == "image":
