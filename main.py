@@ -86,10 +86,15 @@ async def process_issue(issue: dict):
             "flag": flag,
         })
 
+        # First non-empty line as snippet for the review card
+        first_line = next((l.strip() for l in main_content.split("\n") if l.strip()), "")
+        snippet = textwrap.shorten(first_line, width=180, placeholder="…")
+
         sendable_blocks.append({
             "name": BLOCK_LABELS.get(block_key, block_key),
             "label": BLOCK_LABELS.get(block_key, block_key).upper(),
             "content_html": main_content.replace("\n", "<br>"),
+            "snippet": snippet,
             "image_b64": image_b64 or "",
             "flag": flag,
         })
@@ -122,11 +127,17 @@ async def poll_notion():
         root_id = find_root_page(os.environ.get("NOTION_ROOT_PAGE", "Newsletter"))
         new_issues = get_new_issues(root_id, processed_issues)
         print(f"  Found {len(new_issues)} issue(s) to process.")
-        for issue in new_issues:
-            await process_issue(issue)
     except Exception as e:
         import traceback
-        print(f"Poll error: {e}\n{traceback.format_exc()}")
+        print(f"Poll error (finding issues): {e}\n{traceback.format_exc()}")
+        return
+
+    for issue in new_issues:
+        try:
+            await process_issue(issue)
+        except Exception as e:
+            import traceback
+            print(f"Error processing '{issue['title']}': {e}\n{traceback.format_exc()}")
 
 
 scheduler = AsyncIOScheduler()
@@ -165,8 +176,9 @@ APPROVAL_PAGE = """
     .weak { background: #fff0f0; color: #c0392b; font-size: 11px; font-family: Arial; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
     .card-image { width: 100%; max-height: 360px; object-fit: cover; display: block; border-top: 1px solid #f0ede8; }
     .no-image { padding: 12px 24px 0; font-size: 12px; color: #bbb; font-family: Arial; font-style: italic; }
-    .card-body { padding: 16px 24px 24px; font-size: 14px; line-height: 1.75; color: #444; max-height: 200px; overflow: hidden; position: relative; }
-    .card-body::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 60px; background: linear-gradient(transparent, white); }
+    .card-body { padding: 12px 24px 20px; font-size: 13px; line-height: 1.55; color: #666;
+                 display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
+                 overflow: hidden; }
     .footer { max-width: 740px; margin: 32px auto 60px; }
     .send-btn { display: block; width: 100%; padding: 18px; background: #111; color: white; border: none; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-family: Arial; cursor: pointer; border-radius: 4px; }
     .send-btn:hover { background: #333; }
@@ -195,7 +207,7 @@ APPROVAL_PAGE = """
       {% else %}
         <p class="no-image">No image generated</p>
       {% endif %}
-      <div class="card-body">{{ block.content_html | safe }}</div>
+      <div class="card-body">{{ block.snippet }}</div>
     </div>
     {% endfor %}
 

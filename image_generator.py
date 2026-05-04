@@ -1,7 +1,23 @@
 import httpx
+import json
 import os
 
 IMAGE_WORKER_URL = os.environ["IMAGE_WORKER_URL"]
+
+
+def _parse_mcp_response(resp: httpx.Response) -> dict:
+    """Parse MCP response — either plain JSON or SSE (data: {...})."""
+    ct = resp.headers.get("content-type", "")
+    if "text/event-stream" in ct or not resp.text.strip().startswith("{"):
+        # SSE: extract JSON from lines starting with "data: "
+        for line in resp.text.splitlines():
+            line = line.strip()
+            if line.startswith("data:"):
+                payload = line[len("data:"):].strip()
+                if payload and payload != "[DONE]":
+                    return json.loads(payload)
+        return {}
+    return resp.json()
 
 
 async def _mcp_session(client: httpx.AsyncClient) -> str | None:
@@ -65,8 +81,8 @@ async def generate_image(
             )
             resp.raise_for_status()
 
-            data = resp.json()
-            print(f"[image_generator] Response keys: {list(data.keys())}")
+            data = _parse_mcp_response(resp)
+            print(f"[image_generator] Content-Type: {resp.headers.get('content-type')} | keys: {list(data.keys())}")
 
             content = data.get("result", {}).get("content", [])
             for item in content:
