@@ -86,7 +86,7 @@ async def process_issue(issue: dict):
         })
 
         # First non-empty line as snippet for the review card
-        first_line = next((l.strip() for l in main_content.split("\n") if l.strip()), "")
+        first_line = next((l.strip() for l in main_content.split("\n") if l.strip() and len(l.strip()) > 40), "")
         snippet = textwrap.shorten(first_line, width=180, placeholder="…")
 
         sendable_blocks.append({
