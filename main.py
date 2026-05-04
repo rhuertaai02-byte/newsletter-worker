@@ -74,7 +74,6 @@ async def process_issue(issue: dict):
                 prompt=prompt,
                 size=settings["size"],
                 quality=settings["quality"],
-                style=settings["style"],
             )
 
         summary = next((l.strip() for l in main_content.split("\n") if l.strip()), "—")

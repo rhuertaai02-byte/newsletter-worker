@@ -47,7 +47,6 @@ async def generate_image(
     prompt: str,
     size: str = "1024x1024",
     quality: str = "medium",
-    style: str = "natural",
 ) -> str | None:
     """Call the Cloudflare MCP Worker and return base64 image data."""
     try:
@@ -67,7 +66,6 @@ async def generate_image(
                         "prompt": prompt,
                         "size": size,
                         "quality": quality,
-                        "style": style,
                     },
                 },
             }
