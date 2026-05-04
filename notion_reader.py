@@ -68,8 +68,83 @@ def get_issue_blocks(issue_page_id: str) -> dict:
         title = block["child_page"]["title"]
         page_id = block["id"]
         content = extract_page_text(page_id)
-        blocks[title] = {"id": page_id, "content": content}
+        content_html = extract_page_html(page_id)
+        blocks[title] = {"id": page_id, "content": content, "html": content_html}
     return blocks
+
+
+def _rich_text_to_html(rich_text: list) -> str:
+    html = ""
+    for r in rich_text:
+        text = r["plain_text"].replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        ann = r.get("annotations", {})
+        href = r.get("href")
+        if ann.get("code"):
+            text = f"<code>{text}</code>"
+        if ann.get("bold"):
+            text = f"<strong>{text}</strong>"
+        if ann.get("italic"):
+            text = f"<em>{text}</em>"
+        if href:
+            text = f'<a href="{href}" style="color:#111;">{text}</a>'
+        html += text
+    return html
+
+
+def extract_page_html(page_id: str) -> str:
+    all_blocks = notion.blocks.children.list(block_id=page_id).get("results", [])
+    parts = []
+    in_section = False
+    pending_list: list = []
+    pending_list_type: str | None = None
+
+    def flush_list():
+        if pending_list:
+            items = "".join(f"<li>{item}</li>" for item in pending_list)
+            parts.append(f"<{pending_list_type}>{items}</{pending_list_type}>")
+            pending_list.clear()
+
+    for block in all_blocks:
+        btype = block["type"]
+        rich = block.get(btype, {}).get("rich_text", [])
+        plain = "".join(r["plain_text"] for r in rich).strip()
+        html_content = _rich_text_to_html(rich)
+
+        if plain == "Content":
+            in_section = True
+            continue
+        if in_section and plain in ("Sources", "Image Prompt", "Image Settings", "Quality Flag"):
+            break
+        if not in_section:
+            continue
+
+        if btype == "bulleted_list_item":
+            if pending_list_type != "ul":
+                flush_list()
+                pending_list_type = "ul"
+            pending_list.append(html_content)
+        elif btype == "numbered_list_item":
+            if pending_list_type != "ol":
+                flush_list()
+                pending_list_type = "ol"
+            pending_list.append(html_content)
+        else:
+            flush_list()
+            pending_list_type = None
+            if btype == "heading_1":
+                parts.append(f"<h1>{html_content}</h1>")
+            elif btype == "heading_2":
+                parts.append(f"<h2>{html_content}</h2>")
+            elif btype == "heading_3":
+                parts.append(f"<h3>{html_content}</h3>")
+            elif btype == "paragraph":
+                if html_content:
+                    parts.append(f"<p>{html_content}</p>")
+            elif btype == "code":
+                parts.append(f"<pre><code>{plain}</code></pre>")
+
+    flush_list()
+    return "\n".join(parts)
 
 
 def extract_page_text(page_id: str) -> str:

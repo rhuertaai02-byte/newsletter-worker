@@ -92,7 +92,7 @@ async def process_issue(issue: dict):
         sendable_blocks.append({
             "name": BLOCK_LABELS.get(block_key, block_key),
             "label": BLOCK_LABELS.get(block_key, block_key).upper(),
-            "content_html": main_content.replace("\n", "<br>"),
+            "content_html": block_data["html"],
             "snippet": snippet,
             "image_b64": image_b64 or "",
             "flag": flag,
@@ -175,9 +175,15 @@ APPROVAL_PAGE = """
     .weak { background: #fff0f0; color: #c0392b; font-size: 11px; font-family: Arial; padding: 4px 12px; border-radius: 20px; white-space: nowrap; }
     .card-image { width: 100%; max-height: 360px; object-fit: cover; display: block; border-top: 1px solid #f0ede8; }
     .no-image { padding: 12px 24px 0; font-size: 12px; color: #bbb; font-family: Arial; font-style: italic; }
-    .card-body { padding: 12px 24px 20px; font-size: 13px; line-height: 1.55; color: #666;
-                 display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical;
-                 overflow: hidden; }
+    .card-body { padding: 12px 24px 20px; font-size: 13px; line-height: 1.7; color: #444;
+                 max-height: 480px; overflow-y: auto; }
+    .card-body h1, .card-body h2, .card-body h3 { font-size: 14px; font-weight: bold; margin: 12px 0 4px; color: #111; }
+    .card-body p { margin: 0 0 10px; }
+    .card-body ul, .card-body ol { padding-left: 20px; margin: 0 0 10px; }
+    .card-body li { margin-bottom: 4px; }
+    .card-body pre { background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; overflow-x: auto; margin: 8px 0; }
+    .card-body a { color: #111; }
+    .card-body strong { color: #111; }
     .footer { max-width: 740px; margin: 32px auto 60px; }
     .send-btn { display: block; width: 100%; padding: 18px; background: #111; color: white; border: none; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; font-family: Arial; cursor: pointer; border-radius: 4px; }
     .send-btn:hover { background: #333; }
@@ -206,7 +212,7 @@ APPROVAL_PAGE = """
       {% else %}
         <p class="no-image">No image generated</p>
       {% endif %}
-      <div class="card-body">{{ block.snippet }}</div>
+      <div class="card-body">{{ block.content_html | safe }}</div>
     </div>
     {% endfor %}
 
