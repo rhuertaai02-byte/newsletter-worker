@@ -101,7 +101,7 @@ def extract_image_prompt(content: str) -> str | None:
 
 
 def extract_image_settings(content: str) -> dict:
-    settings = {"size": "1024x1024", "quality": "medium", "style": "natural"}
+    settings = {"size": "1024x1024", "quality": "medium"}
     for line in content.split("\n"):
         if "Size:" in line:
             for opt in ["1024x1024", "1024x1536", "1536x1024"]:
@@ -131,4 +131,20 @@ def extract_main_content(content: str) -> str:
 
 
 def mark_issue_processed(issue_page_id: str):
-    children = notion
+    children = notion.blocks.children.list(block_id=issue_page_id).get("results", [])
+    for block in children:
+        if block["type"] == "child_page" and "Summary" in block["child_page"]["title"]:
+            summary_id = block["id"]
+            notion.blocks.children.append(
+                block_id=summary_id,
+                children=[{
+                    "object": "block",
+                    "type": "paragraph",
+                    "paragraph": {
+                        "rich_text": [{"type": "text", "text": {"content": "Status: IMAGES GENERATED — PENDING APPROVAL"}}]
+                    }
+                }]
+            )
+            print(f"  Marked '{issue_page_id}' as processed in Notion.")
+            return
+    print(f"  Warning: no Summary page found for '{issue_page_id}', could not mark processed.")
