@@ -223,3 +223,24 @@ def mark_issue_processed(issue_page_id: str):
             print(f"  Marked '{issue_page_id}' as processed in Notion.")
             return
     print(f"  Warning: no Summary page found for '{issue_page_id}', could not mark processed.")
+
+
+def move_issue_to_archive(issue_page_id: str):
+    root_page_id = find_root_page(os.environ.get("NOTION_ROOT_PAGE", "Newsletter"))
+    children = notion.blocks.children.list(block_id=root_page_id).get("results", [])
+    archive_id = None
+    for block in children:
+        if block["type"] == "child_page" and block["child_page"]["title"] == "Archive":
+            archive_id = block["id"]
+            break
+    if not archive_id:
+        response = notion.pages.create(
+            parent={"page_id": root_page_id},
+            properties={"title": {"title": [{"text": {"content": "Archive"}}]}}
+        )
+        archive_id = response["id"]
+    notion.pages.update(
+        page_id=issue_page_id,
+        parent={"page_id": archive_id}
+    )
+    print(f"  Moved '{issue_page_id}' to Archive.")

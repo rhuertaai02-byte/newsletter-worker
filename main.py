@@ -20,6 +20,7 @@ from notion_reader import (
     get_issue_blocks,
     get_new_issues,
     mark_issue_processed,
+    move_issue_to_archive,
 )
 from image_generator import generate_image, base64_to_data_url
 from email_sender import send_preview_email, send_newsletter
@@ -105,6 +106,7 @@ async def process_issue(issue: dict):
     token = secrets.token_urlsafe(32)
     pending_approvals[token] = {
         "title": issue_title,
+        "issue_id": issue_id,
         "blocks": sendable_blocks,
         "date": datetime.now().strftime("%B %d, %Y"),
     }
@@ -288,6 +290,13 @@ async def send_approved_form(token: str, request: Request):
         issue_date=data["date"],
         year=str(datetime.now().year),
     )
+
+    issue_id = data.get("issue_id")
+    if issue_id:
+        try:
+            move_issue_to_archive(issue_id)
+        except Exception as e:
+            print(f"Warning: could not archive issue: {e}")
 
     del pending_approvals[token]
 
