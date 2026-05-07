@@ -55,48 +55,82 @@ PREVIEW_TEMPLATE = """
 
 NEWSLETTER_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
   <meta charset="utf-8">
-  <style>
-    body { font-family: Georgia, serif; background: #fff; margin: 0; padding: 0; color: #111; }
-    .wrapper { max-width: 640px; margin: 0 auto; padding: 40px 20px; }
-    .header { border-bottom: 2px solid #111; padding-bottom: 20px; margin-bottom: 32px; }
-    .header h1 { font-size: 13px; letter-spacing: 3px; text-transform: uppercase; margin: 0 0 6px; color: #888; }
-    .header h2 { font-size: 26px; margin: 0; }
-    .block { margin-bottom: 48px; padding-bottom: 48px; border-bottom: 1px solid #e5e5e5; }
-    .block:last-child { border-bottom: none; }
-    .block-label { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: #888; margin-bottom: 8px; }
-    .block h3 { font-size: 20px; margin: 0 0 16px; }
-    .block p { font-size: 15px; line-height: 1.8; color: #333; }
-    .block img { width: 100%; border-radius: 4px; margin: 20px 0; }
-    .footer { margin-top: 48px; padding-top: 20px; border-top: 1px solid #e5e5e5;
-              font-size: 12px; color: #999; text-align: center; line-height: 1.6; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ issue_title }}</title>
 </head>
-<body>
-  <div class="wrapper">
-    <div class="header">
-      <h1>Newsletter</h1>
-      <h2>{{ issue_date }}</h2>
-    </div>
+<body style="margin:0;padding:0;background:#f4f1ec;font-family:Georgia,serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f1ec;">
+    <tr><td align="center" style="padding:40px 16px 0;">
 
-    {% for block in blocks %}
-    <div class="block">
-      <div class="block-label">{{ block.label }}</div>
-      <h3>{{ block.name }}</h3>
-      {% if block.image_b64 %}
-      <img src="data:image/png;base64,{{ block.image_b64 }}" alt="{{ block.name }}">
-      {% endif %}
-      <div>{{ block.content_html | safe }}</div>
-    </div>
-    {% endfor %}
+      <!-- HEADER -->
+      <table width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="background:#111;padding:28px 40px;">
+            <p style="margin:0;font-family:Arial,sans-serif;font-size:10px;letter-spacing:4px;
+                      text-transform:uppercase;color:#888;">AI &amp; MARKETING INTELLIGENCE</p>
+            <h1 style="margin:8px 0 0;font-family:Georgia,serif;font-size:22px;
+                       font-weight:normal;color:#fff;line-height:1.3;">{{ issue_title }}</h1>
+            <p style="margin:10px 0 0;font-family:Arial,sans-serif;font-size:11px;
+                      color:#666;letter-spacing:1px;">{{ issue_date }}</p>
+          </td>
+        </tr>
+      </table>
 
-    <div class="footer">
-      <p>You're receiving this because you subscribed to our newsletter.<br>
-      © {{ year }} — AI-Powered Luxury Marketing</p>
-    </div>
-  </div>
+      <!-- BLOCKS -->
+      {% for block in blocks %}
+      <table width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;width:100%;margin-top:3px;">
+        <tr>
+          <td style="background:#fff;padding:0;">
+
+            {% if block.image_url %}
+            <img src="{{ block.image_url }}" alt="{{ block.name }}" width="600"
+                 style="display:block;width:100%;max-width:600px;height:auto;border:0;">
+            {% endif %}
+
+            <div style="padding:28px 36px 32px;">
+              <p style="margin:0 0 6px;font-family:Arial,sans-serif;font-size:9px;
+                        letter-spacing:3px;text-transform:uppercase;color:#aaa;">{{ block.label }}</p>
+              <h2 style="margin:0 0 18px;font-family:Georgia,serif;font-size:19px;
+                         font-weight:normal;color:#111;line-height:1.4;">{{ block.name }}</h2>
+              <div style="font-family:Georgia,serif;font-size:14px;line-height:1.9;color:#333;">
+                {{ block.content_html | safe }}
+              </div>
+            </div>
+
+          </td>
+        </tr>
+      </table>
+      <table width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;width:100%;margin-top:2px;">
+        <tr><td style="height:2px;background:#f4f1ec;font-size:0;">&nbsp;</td></tr>
+      </table>
+      {% endfor %}
+
+      <!-- FOOTER -->
+      <table width="600" cellpadding="0" cellspacing="0" border="0"
+             style="max-width:600px;width:100%;margin-top:3px;">
+        <tr>
+          <td style="background:#111;padding:28px 40px;text-align:center;">
+            <p style="margin:0;font-family:Arial,sans-serif;font-size:11px;
+                      color:#555;line-height:1.7;">
+              Recibes esto porque estás suscrito.<br>
+              © {{ year }} — AI-Powered Luxury Marketing
+            </p>
+          </td>
+        </tr>
+      </table>
+
+      <p style="font-family:Arial,sans-serif;font-size:10px;color:#bbb;
+                text-align:center;padding:20px 0 40px;">
+        Para darte de baja responde con BAJA.
+      </p>
+
+    </td></tr>
+  </table>
 </body>
 </html>
 """
@@ -121,6 +155,7 @@ def send_preview_email(issue_title: str, blocks: list[dict], token: str):
 def send_newsletter(issue_title: str, blocks: list[dict], issue_date: str, year: str):
     import datetime
     html = Template(NEWSLETTER_TEMPLATE).render(
+        issue_title=issue_title,
         issue_date=issue_date,
         blocks=blocks,
         year=datetime.datetime.now().year,

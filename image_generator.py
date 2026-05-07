@@ -48,6 +48,7 @@ async def generate_image(
     size: str = "1024x1024",
     quality: str = "medium",
 ) -> str | None:
+    """Returns a public R2 URL (https://...) or base64 string as fallback, or None on error."""
     """Call the Cloudflare MCP Worker and return base64 image data."""
     try:
         async with httpx.AsyncClient(timeout=180) as client:
@@ -84,10 +85,14 @@ async def generate_image(
 
             content = data.get("result", {}).get("content", [])
             for item in content:
+                if item.get("type") == "text":
+                    text = item.get("text", "").strip()
+                    if text.startswith("https://"):
+                        return text
+                    if text.startswith("data:image"):
+                        return text.split(",", 1)[-1]
                 if item.get("type") == "image":
-                    return item["data"]
-                if item.get("type") == "text" and item.get("text", "").startswith("data:image"):
-                    return item["text"].split(",", 1)[-1]
+                    return item.get("data", "")
 
             print(f"[image_generator] Unexpected response: {str(data)[:500]}")
     except Exception as e:

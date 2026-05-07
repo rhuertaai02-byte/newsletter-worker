@@ -68,10 +68,10 @@ async def process_issue(issue: dict):
 
         flag = "WEAK" if "WEAK" in content.upper() else "GOOD"
 
-        image_b64 = None
+        image_url = None
         if prompt:
             print(f"  Generating image for {block_key}...")
-            image_b64 = await generate_image(
+            image_url = await generate_image(
                 prompt=prompt,
                 size=settings["size"],
                 quality=settings["quality"],
@@ -95,7 +95,7 @@ async def process_issue(issue: dict):
             "label": BLOCK_LABELS.get(block_key, block_key).upper(),
             "content_html": block_data["html"],
             "snippet": snippet,
-            "image_b64": image_b64 or "",
+            "image_url": image_url or "",
             "flag": flag,
         })
 
@@ -209,8 +209,8 @@ APPROVAL_PAGE = """
         </div>
         {% if block.flag == "WEAK" %}<span class="weak">⚠ Flagged weak</span>{% endif %}
       </div>
-      {% if block.image_b64 %}
-        <img class="card-image" src="data:image/png;base64,{{ block.image_b64 }}" alt="{{ block.name }}">
+      {% if block.image_url %}
+        <img class="card-image" src="{{ block.image_url }}" alt="{{ block.name }}">
       {% else %}
         <p class="no-image">No image generated</p>
       {% endif %}
